@@ -6,7 +6,6 @@ use Yii;
 use yii\base\Configurable;
 use yii\base\InvalidConfigException;
 use yii\base\UnknownPropertyException;
-use yii\di\Container;
 use yii\helpers\ArrayHelper;
 
 /**
@@ -35,7 +34,20 @@ class MountManager extends \League\Flysystem\MountManager implements Configurabl
      */
     public function __set($name, $config)
     {
-        $class = ArrayHelper::remove($config, 'class');
+        $this->_filesystems[$name] = $this->createObject([
+            'class' => 'League\Flysystem\Filesystem',
+            'adapter' => $config
+        ]);
+    }
+
+    /**
+     * @param array $config
+     * @return object
+     * @throws InvalidConfigException
+     */
+    private function createObject($config)
+    {
+        $class = ArrayHelper::getValue($config, 'class');
 
         if ($class === null) {
             throw new InvalidConfigException('$class must be set for an adapter of Filesystem');
@@ -45,14 +57,17 @@ class MountManager extends \League\Flysystem\MountManager implements Configurabl
         $constructParams = [];
 
         foreach ($reflection->getConstructor()->getParameters() as $param) {
-            $constructParams[] = ArrayHelper::getValue($config, $param->name, $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null);
+            $defaultValue = $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null;
+            $value = ArrayHelper::remove($config, $param->name, $defaultValue);
+
+            if (is_array($value) && isset($value['class'])) {
+                $value = $this->createObject($value);
+            }
+
+            $constructParams[] = $value;
         }
 
-        $container = new Container();
-        $container->set('League\Flysystem\AdapterInterface', $class, $constructParams);
-        $container->set('Filesystem', 'League\Flysystem\Filesystem');
-
-        $this->_filesystems[$name] = $container->get('Filesystem');
+        return Yii::createObject($config, $constructParams);
     }
 
     /**

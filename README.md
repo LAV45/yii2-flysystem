@@ -49,6 +49,22 @@ return [
                     'timeout' => 30,
                 ],
             ],
+            'hotBox' => [ // https://flysystem.thephpleague.com/adapter/aws-s3-v3/
+                'class' => 'League\Flysystem\AwsS3v3\AwsS3Adapter',
+                'client' => [
+                    'class' => 'Aws\S3\S3Client',
+                    'args' => [
+                        'credentials' => [
+                            'key' => 'chvw2NSdzDV2aKbsJg8ypX',
+                            'secret' => 'a4aeZBK5ZRTsDTCqBVFGZpL9MEeBMYjDHS3Cx55YazDD'
+                        ],
+                        'endpoint' => 'https://hb.bizmrg.com',
+                        'version' => 'latest',
+                        'region' => 'ru-msk',
+                    ]
+                ],
+                'bucket' => 'public',
+            ],
             // and config other filesystem adapters
             // read adapters section of flysystem guide https://flysystem.thephpleague.com
         ],
@@ -71,6 +87,21 @@ Or simple usage:
 
 ```php
 Yii::$app->filesystem->localFs->write('path/to/file.txt', 'contents');
+```
+
+Usage AwsS3Adapter:
+
+```php
+/** @var \League\Flysystem\Filesystem $hotBox */
+$hotBox = Yii::$app->flysystem->hotBox;
+/** @var \League\Flysystem\AwsS3v3\AwsS3Adapter $adapter */
+$adapter = $hotBox->getAdapter();
+
+$file = 'path/to/file.txt';
+$hotBox->put($file, 'contents', ['ACL' => 'public-read']);
+
+// Return url https://public.hb.bizmrg.com/path/to/file.txt
+$url = $adapter->getClient()->getObjectUrl('public', $file);
 ```
 
 for how to work with flysystem read this api [documentation](https://flysystem.thephpleague.com/api/) .
