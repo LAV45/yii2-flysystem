@@ -45,26 +45,33 @@ class MountManager extends \League\Flysystem\MountManager implements Configurabl
      * @return object
      * @throws InvalidConfigException
      */
-    private function createObject($config)
+    private function createObject(array $config)
     {
         $class = ArrayHelper::getValue($config, 'class');
-
         if ($class === null) {
-            throw new InvalidConfigException('$class must be set for an adapter of Filesystem');
+            throw new InvalidConfigException('[class] must be set for an adapter of Filesystem');
         }
 
-        $reflection = new \ReflectionClass($class);
         $constructParams = [];
+        $reflection = new \ReflectionClass($class);
 
-        foreach ($reflection->getConstructor()->getParameters() as $param) {
-            $defaultValue = $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null;
-            $value = ArrayHelper::remove($config, $param->name, $defaultValue);
+        if ($constructor = $reflection->getConstructor()) {
+            foreach ($constructor->getParameters() as $param) {
+                $defaultValue = $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null;
+                $value = ArrayHelper::remove($config, $param->name, $defaultValue);
 
-            if (is_array($value) && isset($value['class'])) {
-                $value = $this->createObject($value);
+                if (is_array($value)) {
+                    if (isset($value['class'])) {
+                        $value = self::createObject($value);
+                    }
+                } elseif (is_string($value)) {
+                    if (class_exists($value)) {
+                        $value = self::createObject(['class' => $value]);
+                    }
+                }
+
+                $constructParams[] = $value;
             }
-
-            $constructParams[] = $value;
         }
 
         return Yii::createObject($config, $constructParams);
